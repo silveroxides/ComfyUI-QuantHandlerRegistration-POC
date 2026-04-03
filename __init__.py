@@ -5,8 +5,11 @@ This is the minimal pattern for any custom node that wants to add quantization
 formats to ComfyUI's loader pipeline using the register_quant_handler PR.
 """
 import logging
+import sys
 import torch
+from typing_extensions import override
 
+from comfy_api.latest import ComfyExtension, io
 # ── 1. Import the registration API from ComfyUI core ────────────────────────
 from comfy.quant_ops import QuantHandler, register_quant_handler
 
@@ -80,3 +83,33 @@ register_quant_handler("int8_blockwise", QuantHandler(
 ))
 
 logging.info("POC: Registered int8_tensorwise and int8_blockwise via QuantHandler")
+
+
+class DummyInt(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="PrimitiveDummyInt",
+            display_name="DummyInt",
+            category="utils/primitive",
+            description="A dummy node that outputs an int. Used to test quant handler registration at ComfyUI launch.",
+            inputs=[
+                io.Int.Input("value", min=-sys.maxsize, max=sys.maxsize),
+            ],
+            outputs=[io.Int.Output()],
+        )
+
+    @classmethod
+    def execute(cls, value: int) -> io.NodeOutput:
+        return io.NodeOutput(value)
+
+class QuantHandlerExtension(ComfyExtension):
+    @override
+    async def get_node_list(self) -> list[type[io.ComfyNode]]:
+        return [
+            DummyInt,
+        ]
+
+
+async def comfy_entrypoint() -> QuantHandlerExtension:
+    return QuantHandlerExtension()
